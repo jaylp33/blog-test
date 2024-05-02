@@ -1,0 +1,58 @@
+version: "3.7"
+services:
+  app:
+    build:
+      args:
+        user: rev
+        uid: 1000
+      context: ./
+      dockerfile: Dockerfile
+    image: php:8.2-fpm-alpine3.19
+    container_name: blog-app
+    restart: unless-stopped
+    working_dir: /var/app/current/
+    volumes:
+      - ./:/var/app/current/
+    networks:
+      - BlogNet
+
+  mysql:
+    image: mysql/mysql-server:8.0
+    container_name: blog-db
+    restart: always
+    tty: true
+    ports:
+      - "44406:3306"
+    environment:
+      MYSQL_DATABASE: blog
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_PASSWORD: password
+      MYSQL_USER: handover_user
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    networks:
+      - BlogNet
+    command: mysqld --sql_mode=""
+    volumes:
+      - ./database/base:/root
+      - ./database/mysql:/var/lib/mysql
+      - ./docker-compose/mysql/conf/:/etc/mysql/conf.d
+      - ./docker-compose/mysql/init/:/docker-entrypoint-initdb.d
+
+  nginx:
+    image: nginx:alpine
+    container_name: blog-nginx
+    restart: unless-stopped
+    ports:
+      - 8090:80
+      - 44443:443
+    volumes:
+      - ./.certs/:/etc/nginx/ssl
+      - ./:/var/app/current/
+      - ./docker-compose/nginx/:/etc/nginx/conf.d
+    networks:
+      - BlogNet
+
+networks:
+  BlogNet:
+    driver: bridge
